@@ -1,0 +1,363 @@
+<html>
+<head><style>
+[v-cloak] {
+    display: none
+}
+</style></head>
+<body>
+<div id="calc">
+    <table v-cloak>
+        <tr><td colspan='8'><span v-show="answer !== null" style="text-align: right; width: 100%">Ans = {{ answer }}</span></td></tr>
+        <tr><td colspan='8'><textarea style="text-align: right; width: 100%"></textarea></td></tr>
+        <tr><td colspan='8'><input 
+        v-model.trim="query" 
+        v-on:keyup="parse"
+        v-on:keyup.enter="commit"
+        style="text-align: right; width: 100%" type="text"></td></tr>
+        <tr v-for="row in 5">
+            <td v-for="column in 8">
+                <label v-if="row == 1 && column <= 4">
+                    {{ btns[row - 1][column - 1] }}
+                    <span v-if="column == 4">
+                        <input type="radio" :name="btns[row - 1][column - 1]" checked disabled>
+                        <input type="radio" :name="btns[row - 1][column - 1]" disabled>
+                    </span>
+                    <input type="radio" name="mode" v-else :checked="column == 1" disabled>
+                </label>
+                <button v-else style="text-align: center; width: 100%" @click="btn(row-1, column-1)">{{ btns[row - 1][column - 1] }}</button>
+            </td>
+        </tr>
+    </table>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+<script>
+/*
+1 + 2 × 3 = 7
+1 2 3 x +
+via sy
+0.  out: [],                op: ![]
+1.  out: [1],               op: ![]
+2.  out: [1],               op: ![+]
+3.  out: [1, 2]             op: ![+]
+4.  out: [1, 2]             op: ![x, +]
+5.  out: [1, 2, 3]          op: ![x, +]
+===infix
+6.  out: [1, 2, 3, x, +]    op: ![]
+7.  out: [2, 3, x, +]       op: ![1]
+8.  out: [3, x, +]          op: ![2, 1]
+9.  out: [x, +]             op: ![3, 2, 1]
+10. out: [x(3, ), +]        op: ![2, 1]
+11. out: [x(3, 2), +]       op: ![1]
+12. out: [6, +]             op: ![1]
+13. out: [+]                op: ![6, 1]
+14. out: [+(6, )]           op: ![1]
+15. out: [+(6, 1)]          op: ![]
+16. out: [7]                op: ![]
+17. out: []                 op: ![7]
+done!!!
+-----
+1 sin(1 + 23 × 4 ÷ 5 - 6 + 7 cos(6 tan(1e))) = 0.34857063195 || 0.34857063195871 (RADIANS) | 0.70219802223 || 0.70219802223217 (DEGREES)
+[], {}
+[1], {} 
+[1], {x}
+[1], {sin, x}
+[1], {(, sin, x}
+[1, 1], {(, sin, x}
+[1, 1], {+, (, sin, x}
+[1, 1, 23], {+, (, sin, x}
+[1, 1, 23], {x, +, (, sin, x}
+[1, 1, 23, 4], {x, +, (, sin, x}
+[1, 1, 23, 4, x], {+, (, sin, x} ÷
+[1, 1, 23, 4, x], {÷, +, (, sin, x}
+[1, 1, 23, 4, x, 5], {÷, +, (, sin, x}
+[1, 1, 23, 4, x, 5], {÷, +, (, sin, x} -
+[1, 1, 23, 4, x, 5, ÷], {+, (, sin, x} -
+[1, 1, 23, 4, x, 5, ÷, +], {(, sin, x} -
+[1, 1, 23, 4, x, 5, ÷, +], {-, (, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6], {-, (, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6], {-, (, sin, x} +
+[1, 1, 23, 4, x, 5, ÷, +, 6, -], {(, sin, x} +
+[1, 1, 23, 4, x, 5, ÷, +, 6, -], {+, (, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7], {+, (, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7], {x, +, (, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7], {cos, x, +, (, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7], {(, cos, x, +, (, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6], {(, cos, x, +, (, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6], {x, (, cos, x, +, (, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6], {tan, x, (, cos, x, +, (, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6], {(, tan, x, (, cos, x, +, (, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1], {(, tan, x, (, cos, x, +, (, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1], {x, (, tan, x, (, cos, x, +, (, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e], {x, (, tan, x, (, cos, x, +, (, sin, x}
+//ending parenthesis
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e], {), x, (, tan, x, (, cos, x, +, (, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e], {x, (, tan, x, (, cos, x, +, (, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x], {(, tan, x, (, cos, x, +, (, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x], {tan, x, (, cos, x, +, (, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x], {), tan, x, (, cos, x, +, (, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x], {tan, x, (, cos, x, +, (, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan], {x, (, cos, x, +, (, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x], {(, cos, x, +, (, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x], {cos, x, +, (, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x], {), cos, x, +, (, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x], {cos, x, +, (, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos], {x, +, (, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x], {+, (, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +], {(, sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +], {sin, x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin], {x}
+[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {}
+===
+[1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {1}
+[23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {1, 1}
+[4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {23, 1, 1}
+[x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {4, 23, 1, 1}
+[x(4, ), 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {23, 1, 1}
+[x(4, 23), 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {1, 1}
+[x(4, 23), 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {1, 1}
+[92, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {1, 1}
+[5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {92, 1, 1}
+[÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {5, 92, 1, 1}
+[÷(5, ), +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {92, 1, 1}
+[÷(5, 92), +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {1, 1}
+[18.4, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {1, 1}
+[+, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {18.4, 1, 1}
+[+(18.4, ), 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {1, 1}
+[+(18.4, 1), 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {1}
+[19.4, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {1}
+[6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {19.4, 1}
+[-, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {6, 19.4, 1}
+[-(6, ), 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {19.4, 1}
+[-(6, 19.4), 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {1}
+[13.4, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {1}
+[7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {13.4, 1}
+[6, 1, e, x, tan, x, cos, x, +, sin, x], {7, 13.4, 1}
+[1, e, x, tan, x, cos, x, +, sin, x], {6, 7, 13.4, 1}
+[e, x, tan, x, cos, x, +, sin, x], {1, 6, 7, 13.4, 1}
+[x, tan, x, cos, x, +, sin, x], {e, 1, 6, 7, 13.4, 1}
+[x(e, ), tan, x, cos, x, +, sin, x], {1, 6, 7, 13.4, 1}
+[x(e, 1), tan, x, cos, x, +, sin, x], {6, 7, 13.4, 1}
+[e, tan, x, cos, x, +, sin, x], {6, 7, 13.4, 1}
+[tan, x, cos, x, +, sin, x], {e, 6, 7, 13.4, 1}
+[tan(e), x, cos, x, +, sin, x], {6, 7, 13.4, 1}
+[-0.45054953407|0.04747859541, x, cos, x, +, sin, x], {6, 7, 13.4, 1}
+a = -0.45054953407|0.04747859541
+[a, x, cos, x, +, sin, x], {6, 7, 13.4, 1}
+[x, cos, x, +, sin, x], {a, 6, 7, 13.4, 1}
+[x(a, ), cos, x, +, sin, x], {6, 7, 13.4, 1}
+[x(a, 6), cos, x, +, sin, x], {7, 13.4, 1}
+[6a, cos, x, +, sin, x], {7, 13.4, 1}
+[cos, x, +, sin, x], {6a, 7, 13.4, 1}
+[cos(6a), x, +, sin, x], {7, 13.4, 1}
+[x, +, sin, x], {cos(6a), 7, 13.4, 1}
+[x(cos(6a), ), +, sin, x], {7, 13.4, 1}
+[x(cos(6a), 7), +, sin, x], {13.4, 1}
+[7(cos(6a)), +, sin, x], {13.4, 1}
+[+, sin, x], {7(cos(6a)), 13.4, 1}
+[+(7(cos(6a)), ), sin, x], {13.4, 1}
+[+(7(cos(6a)), 13.4), sin, x], {1}
+[(7(cos(6a)) + 13.4), sin, x], {1}
+[sin, x], {(7(cos(6a)) + 13.4), 1}
+[sin((7(cos(6a)) + 13.4)), x], {1}
+[x], {sin((7(cos(6a)) + 13.4)), 1}
+[x(sin((7(cos(6a)) + 13.4)), )], {1}
+[x(sin((7(cos(6a)) + 13.4)), 1)], {}
+[1(sin((7(cos(6a)) + 13.4)))], {}
+[], {1(sin((7(cos(6a)) + 13.4)))}
+done!!!
+1(sin((7(cos(6a)) + 13.4))) = 0.70219802223 deg | 0.34857063195 rad
+correct!
+*/
+
+const calc = new Vue({
+    el: '#calc',
+    data: {
+        answer: null,
+        query: '',
+        memory: [  ],
+        dict: {
+            "(": { type: "parentheses", val: "(" },
+            ")": { type: "parentheses", val: ")" },
+            "+": { type: "operator", val: "+", args: 2, ftn: (a, b) => b + a },
+            "-": { type: "operator", val: "-", args: 2, ftn: (a, b) => b - a },
+            "*": { type: "operator", val: "x", args: 2, ftn: (a, b) => b * a },
+            "x": { type: "operator", val: "x", args: 2, ftn: (a, b) => b * a },
+            "×": { type: "operator", val: "x", args: 2, ftn: (a, b) => b * a },
+            "/": { type: "operator", val: "/", args: 2, ftn: (a, b) => b / a },
+            "÷": { type: "operator", val: "÷", args: 2, ftn: (a, b) => b / a },
+            "^": { type: "operator", val: "^", args: 2, ftn: (a, b) => Math.pow(b, a) },
+            "sin": { type: "function", val: "sin", args: 1, ftn: a => Math.sin(a) },
+            "cos": { type: "function", val: "cos", args: 1, ftn: a => Math.cos(a) },
+            "tan": { type: "function", val: "tan", args: 1, ftn: a => Math.tan(a) },
+            "e": { type: "variable", val: "e", args: 0, ftn: () => Math.E },
+            "pi": { type: "variable", val: "π", args: 0, ftn: () => Math.PI },
+            "π": { type: "variable", val: "π", args: 0, ftn: () => Math.PI },
+        },
+        parser: {
+
+        },
+        btns: [
+            ["main", "abc", "func", "deg|rad", "<-", "->", "clear all", "opts"],
+            [7, 8, 9, "÷", "a^2", "a^b", "a/b", "<<"],
+            [4, 5, 6, "x", "sqrt", "xrt", "(", ")"],
+            [1, 2, 3, "-", "sin", "cos", "tan", "pi"],
+            [0, ".", "ans", "+", "|a|", "ln", "%", "<-|"]
+        ],
+    },
+    computed: {
+
+    },
+    methods: {
+        btn: function(x, y) {
+            this.query += this.btns[x][y];
+            console.log(this.query);
+            this.parse();
+        },
+        //TODO: Replace Eval with a web worker to prevent XSS, ajax requests also need to be handled
+        parse: function() {
+            this.query = this.singlespace(this.query);
+            postFixCalc(this.query, this.dict);
+        },
+        evaluate: function() {
+
+        },
+        commit: function() {
+
+        },
+        singlespace: function(s) {
+            return s.replace(/\s+/g, ' ');
+        },
+        binaryOp: function() {
+        }
+    },
+});
+
+var LessTE_Precedence = function(a, b) {
+    let precedenceTable = {
+        "(": -1,
+        "+": 1, "-": 1,
+        "*": 2, "x": 2, "/": 2, "÷": 2,
+        "^": 3
+    };
+    if (!b) {
+        //operator stack is empty
+        return false;
+    }
+    else if (a === ")" && b !== "(") {
+        return true;
+    }
+    else if (!precedenceTable[b]) {
+        return true;
+    }
+    else if (precedenceTable[a] <= precedenceTable[b]) {
+        return true;
+    }
+    else {
+        return false;
+    }
+}
+var splitVariables = function(term, dict) {
+    let parsable = term, result = [], vars = Object.keys(dict).sort((a,b) => b.length - a.length);
+        //below is kind of an abomination even though it works allegedly
+        //target = term.indexOf(Object.keys(dict).sort((a,b) => b.length - a.length).find( e => "1".includes(e)));
+    if (parsable.length <= 1 || parseInt(parsable).toString() == parsable) {
+        return [term];
+    }
+    while (parsable.length) {
+        let key = vars.find(e => parsable.includes(e)), target = parsable.indexOf(key), preKey, val;
+
+        if (target > -1) {
+            preKey = parsable.substring(0, target);
+            //val = parsable.substring(target, key.length);
+            if (preKey.length) { result.push(preKey); }
+            if (key.length) { result.push(key); }
+
+            parsable = parsable.substring(target + key.length);
+            //break;
+        } else {
+            break;
+        }
+    }
+    return result;
+}
+var postFixCalc = function(infix, dict, deg) {
+    //postFix and solve via Djsktra's Shunting Yard
+    let tokens = infix.split(/([\s\(\)])+/).reverse(), output = [], opStack = [];
+
+    //lets use push and pop instead of shift and unshift
+    while (tokens.length) {
+        let token = tokens.pop(), splitToken = splitVariables(token, dict);
+        token = splitToken.shift();
+        if (splitToken.length) {
+            tokens = tokens.concat(splitToken.reverse());
+        }
+        if (dict[token]) {
+            let symbol = dict[token];
+            if (symbol.type == "operator" || symbol.val == ")") {
+                //it will likely be important to distinguish between left handed and right handed operators
+                while (LessTE_Precedence(symbol.val, opStack[opStack.length - 1])) {
+                    if (!opStack.length) {
+                        console.error(`Syntax Error: ${(symbol.val == ')') ? `Mismatched parenthesis` : `${symbol.val} is missing an operand`}`);
+                        return;
+                    }
+                    output.push(opStack.pop());
+                }
+                if (symbol.val == ")") {
+                    output.push(opStack.pop());
+                }
+            }
+            //opStack.unshift()
+            opStack.push(token);
+        }
+        else if (token === " " || token === "") {
+            //ignore
+        }
+        else if (!isNaN(parseInt(token))) {
+            output.push(token);
+            let nextToken;
+            do {
+                if (nextToken) { tokens.pop(); }
+                nextToken = tokens[tokens.length - 1];
+            } while (nextToken === " " || nextToken === "")
+            if (nextToken && (!dict[nextToken] || 
+            (dict[nextToken].type !== "operator" && nextToken !== ")"))) {
+                //add implied multiplication
+                tokens.push("*");
+            }
+        }
+        else {
+            console.error(`Unrecognized Token: ${token}`);
+            return;
+        }
+    }
+    if (opStack.length) {
+        output = output.concat(opStack.reverse())
+        opStack = [];
+    }
+    console.log("infix convert");
+    //now complete calculation, ideally I will strip parenthesis, but I can also just ignore them
+    let helper;
+    output = output.reverse();
+    while (output.length) {
+        helper = [...output].reverse();
+        let token = output.pop(), symbol = dict[token];
+        if (!isNaN(parseInt(token))) {
+            opStack.push(token);
+        }
+        else if (symbol.type !== "parentheses") {
+            let args = [];
+            for (const a in [...Array(symbol.args).keys()]) {
+                if (["sin", "cos", "tan"].includes(symbol.val) && deg) {
+                    //in degree mode, convert to radians
+                    opStack[opStack.length - 1] *= (Math.PI/180);
+                }
+                args.push(parseFloat(opStack.pop()));
+            }
+            opStack.push(symbol.ftn(...args));
+        }
+    }
+    return opStack[0];
+}
+</script>
+</body>
+</html> 
