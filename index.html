@@ -7,8 +7,14 @@
 <body>
 <div id="calc">
     <table v-cloak>
-        <tr><td colspan='8'><span v-show="answer !== null" style="text-align: right; width: 100%">Ans = {{ answer }}</span></td></tr>
-        <tr><td colspan='8'><textarea style="text-align: right; width: 100%"></textarea></td></tr>
+        <tr><td colspan='8'><span style="text-align: right; width: 100%">Ans =
+            <span v-show="!isNaN(answer)">{{ answer }}</span>
+            <!--<span v-show="isNaN(answer) && memory[memory.length - 1] && memory[memory.length - 1].answer">{{ answer }}</span>-->
+        </span></td></tr>
+        <tr><td colspan='8'>
+        <div v-for="expr in memory"><input v-model="expr.content" disabled 
+        style="text-align: right; width: 100%" type="text">
+        </div></td></tr>
         <tr><td colspan='8'><input 
         v-model.trim="query" 
         v-on:keyup="parse"
@@ -20,7 +26,7 @@
                     {{ btns[row - 1][column - 1] }}
                     <span v-if="column == 4">
                         <input type="radio" :name="btns[row - 1][column - 1]" checked disabled>
-                        <input type="radio" :name="btns[row - 1][column - 1]" disabled>
+                        <input type="radio" :name="btns[row - 1][column - 1]" disabled v-model="degMode">
                     </span>
                     <input type="radio" name="mode" v-else :checked="column == 1" disabled>
                 </label>
@@ -31,149 +37,12 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
 <script>
-/*
-1 + 2 × 3 = 7
-1 2 3 x +
-via sy
-0.  out: [],                op: ![]
-1.  out: [1],               op: ![]
-2.  out: [1],               op: ![+]
-3.  out: [1, 2]             op: ![+]
-4.  out: [1, 2]             op: ![x, +]
-5.  out: [1, 2, 3]          op: ![x, +]
-===infix
-6.  out: [1, 2, 3, x, +]    op: ![]
-7.  out: [2, 3, x, +]       op: ![1]
-8.  out: [3, x, +]          op: ![2, 1]
-9.  out: [x, +]             op: ![3, 2, 1]
-10. out: [x(3, ), +]        op: ![2, 1]
-11. out: [x(3, 2), +]       op: ![1]
-12. out: [6, +]             op: ![1]
-13. out: [+]                op: ![6, 1]
-14. out: [+(6, )]           op: ![1]
-15. out: [+(6, 1)]          op: ![]
-16. out: [7]                op: ![]
-17. out: []                 op: ![7]
-done!!!
------
-1 sin(1 + 23 × 4 ÷ 5 - 6 + 7 cos(6 tan(1e))) = 0.34857063195 || 0.34857063195871 (RADIANS) | 0.70219802223 || 0.70219802223217 (DEGREES)
-[], {}
-[1], {} 
-[1], {x}
-[1], {sin, x}
-[1], {(, sin, x}
-[1, 1], {(, sin, x}
-[1, 1], {+, (, sin, x}
-[1, 1, 23], {+, (, sin, x}
-[1, 1, 23], {x, +, (, sin, x}
-[1, 1, 23, 4], {x, +, (, sin, x}
-[1, 1, 23, 4, x], {+, (, sin, x} ÷
-[1, 1, 23, 4, x], {÷, +, (, sin, x}
-[1, 1, 23, 4, x, 5], {÷, +, (, sin, x}
-[1, 1, 23, 4, x, 5], {÷, +, (, sin, x} -
-[1, 1, 23, 4, x, 5, ÷], {+, (, sin, x} -
-[1, 1, 23, 4, x, 5, ÷, +], {(, sin, x} -
-[1, 1, 23, 4, x, 5, ÷, +], {-, (, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6], {-, (, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6], {-, (, sin, x} +
-[1, 1, 23, 4, x, 5, ÷, +, 6, -], {(, sin, x} +
-[1, 1, 23, 4, x, 5, ÷, +, 6, -], {+, (, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7], {+, (, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7], {x, +, (, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7], {cos, x, +, (, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7], {(, cos, x, +, (, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6], {(, cos, x, +, (, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6], {x, (, cos, x, +, (, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6], {tan, x, (, cos, x, +, (, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6], {(, tan, x, (, cos, x, +, (, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1], {(, tan, x, (, cos, x, +, (, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1], {x, (, tan, x, (, cos, x, +, (, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e], {x, (, tan, x, (, cos, x, +, (, sin, x}
-//ending parenthesis
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e], {), x, (, tan, x, (, cos, x, +, (, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e], {x, (, tan, x, (, cos, x, +, (, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x], {(, tan, x, (, cos, x, +, (, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x], {tan, x, (, cos, x, +, (, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x], {), tan, x, (, cos, x, +, (, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x], {tan, x, (, cos, x, +, (, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan], {x, (, cos, x, +, (, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x], {(, cos, x, +, (, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x], {cos, x, +, (, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x], {), cos, x, +, (, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x], {cos, x, +, (, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos], {x, +, (, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x], {+, (, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +], {(, sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +], {sin, x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin], {x}
-[1, 1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {}
-===
-[1, 23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {1}
-[23, 4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {1, 1}
-[4, x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {23, 1, 1}
-[x, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {4, 23, 1, 1}
-[x(4, ), 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {23, 1, 1}
-[x(4, 23), 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {1, 1}
-[x(4, 23), 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {1, 1}
-[92, 5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {1, 1}
-[5, ÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {92, 1, 1}
-[÷, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {5, 92, 1, 1}
-[÷(5, ), +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {92, 1, 1}
-[÷(5, 92), +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {1, 1}
-[18.4, +, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {1, 1}
-[+, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {18.4, 1, 1}
-[+(18.4, ), 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {1, 1}
-[+(18.4, 1), 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {1}
-[19.4, 6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {1}
-[6, -, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {19.4, 1}
-[-, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {6, 19.4, 1}
-[-(6, ), 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {19.4, 1}
-[-(6, 19.4), 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {1}
-[13.4, 7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {1}
-[7, 6, 1, e, x, tan, x, cos, x, +, sin, x], {13.4, 1}
-[6, 1, e, x, tan, x, cos, x, +, sin, x], {7, 13.4, 1}
-[1, e, x, tan, x, cos, x, +, sin, x], {6, 7, 13.4, 1}
-[e, x, tan, x, cos, x, +, sin, x], {1, 6, 7, 13.4, 1}
-[x, tan, x, cos, x, +, sin, x], {e, 1, 6, 7, 13.4, 1}
-[x(e, ), tan, x, cos, x, +, sin, x], {1, 6, 7, 13.4, 1}
-[x(e, 1), tan, x, cos, x, +, sin, x], {6, 7, 13.4, 1}
-[e, tan, x, cos, x, +, sin, x], {6, 7, 13.4, 1}
-[tan, x, cos, x, +, sin, x], {e, 6, 7, 13.4, 1}
-[tan(e), x, cos, x, +, sin, x], {6, 7, 13.4, 1}
-[-0.45054953407|0.04747859541, x, cos, x, +, sin, x], {6, 7, 13.4, 1}
-a = -0.45054953407|0.04747859541
-[a, x, cos, x, +, sin, x], {6, 7, 13.4, 1}
-[x, cos, x, +, sin, x], {a, 6, 7, 13.4, 1}
-[x(a, ), cos, x, +, sin, x], {6, 7, 13.4, 1}
-[x(a, 6), cos, x, +, sin, x], {7, 13.4, 1}
-[6a, cos, x, +, sin, x], {7, 13.4, 1}
-[cos, x, +, sin, x], {6a, 7, 13.4, 1}
-[cos(6a), x, +, sin, x], {7, 13.4, 1}
-[x, +, sin, x], {cos(6a), 7, 13.4, 1}
-[x(cos(6a), ), +, sin, x], {7, 13.4, 1}
-[x(cos(6a), 7), +, sin, x], {13.4, 1}
-[7(cos(6a)), +, sin, x], {13.4, 1}
-[+, sin, x], {7(cos(6a)), 13.4, 1}
-[+(7(cos(6a)), ), sin, x], {13.4, 1}
-[+(7(cos(6a)), 13.4), sin, x], {1}
-[(7(cos(6a)) + 13.4), sin, x], {1}
-[sin, x], {(7(cos(6a)) + 13.4), 1}
-[sin((7(cos(6a)) + 13.4)), x], {1}
-[x], {sin((7(cos(6a)) + 13.4)), 1}
-[x(sin((7(cos(6a)) + 13.4)), )], {1}
-[x(sin((7(cos(6a)) + 13.4)), 1)], {}
-[1(sin((7(cos(6a)) + 13.4)))], {}
-[], {1(sin((7(cos(6a)) + 13.4)))}
-done!!!
-1(sin((7(cos(6a)) + 13.4))) = 0.70219802223 deg | 0.34857063195 rad
-correct!
-*/
-
 const calc = new Vue({
     el: '#calc',
     data: {
         answer: null,
         query: '',
+        degMode: false,
         memory: [  ],
         dict: {
             "(": { type: "parentheses", val: "(" },
@@ -216,13 +85,15 @@ const calc = new Vue({
         //TODO: Replace Eval with a web worker to prevent XSS, ajax requests also need to be handled
         parse: function() {
             this.query = this.singlespace(this.query);
-            postFixCalc(this.query, this.dict);
+            this.answer = postFixCalc(this.query, this.dict, this.degMode);
         },
         evaluate: function() {
 
         },
         commit: function() {
-
+            this.memory.push({ content: this.query, answer: this.answer});
+            this.query = this.answer.toString();
+            //this.answer = null;
         },
         singlespace: function(s) {
             return s.replace(/\s+/g, ' ');
@@ -278,11 +149,13 @@ var splitVariables = function(term, dict) {
             break;
         }
     }
-    return result;
+    return (result.length) ? result : [term];
 }
 var postFixCalc = function(infix, dict, deg) {
     //postFix and solve via Djsktra's Shunting Yard
-    let tokens = infix.split(/([\s\(\)])+/).reverse(), output = [], opStack = [];
+    //By default, the last delimiter has priority which is only a problem when including delimiters
+    //To force parenthesis to have higher priority then white space, we replace all occurrences of a space after '(' or ')'
+    let tokens = infix.replace(/\)\s/, ")").replace(/\(\s/, "(").split(/([\s\(\)])+/).reverse(), output = [], opStack = [];
 
     //lets use push and pop instead of shift and unshift
     while (tokens.length) {
