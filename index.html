@@ -58,19 +58,24 @@ const calc = new Vue({
             "sin": { type: "function", val: "sin", args: 1, ftn: a => Math.sin(a) },
             "cos": { type: "function", val: "cos", args: 1, ftn: a => Math.cos(a) },
             "tan": { type: "function", val: "tan", args: 1, ftn: a => Math.tan(a) },
+            "√": { type: "function", val: "sqrt", args: 1, ftn: a => Math.sqrt(a) },
+            "sqrt": { type: "function", val: "sqrt", args: 1, ftn: a => Math.sqrt(a) },
+            "nrt": { type: "operator", val: "n√", args: 2, ftn: (a, b) => Math.pow(a, 1/b) },
+            "n√": { type: "operator", val: "n√", args: 2, ftn: (a, b) => Math.pow(a, 1/b) },
             "e": { type: "variable", val: "e", args: 0, ftn: () => Math.E },
             "pi": { type: "variable", val: "π", args: 0, ftn: () => Math.PI },
             "π": { type: "variable", val: "π", args: 0, ftn: () => Math.PI },
+            "ans": { type: "variable", val: "ans", args: 0, ftn: () => calc.answer },
         },
-        parser: {
-
+        activeBtns: {
+            "⏎": "commit"
         },
         btns: [
             ["main", "abc", "func", "deg|rad", "<-", "->", "clear all", "opts"],
             [7, 8, 9, "÷", "a^2", "a^b", "a/b", "<<"],
-            [4, 5, 6, "x", "sqrt", "xrt", "(", ")"],
+            [4, 5, 6, "x", "√", "n√", "(", ")"],
             [1, 2, 3, "-", "sin", "cos", "tan", "pi"],
-            [0, ".", "ans", "+", "|a|", "ln", "%", "<-|"]
+            [0, ".", "ans", "+", "|a|", "ln", "%", "⏎"]
         ],
     },
     computed: {
@@ -78,9 +83,14 @@ const calc = new Vue({
     },
     methods: {
         btn: function(x, y) {
-            this.query += this.btns[x][y];
-            console.log(this.query);
-            this.parse();
+            let btn = this.btns[x][y], specialBtn = this.activeBtns[btn];
+            if (specialBtn) {
+                //temp fix, move everything including functions to seperate api to resolve
+                this[specialBtn]();
+            } else {
+                this.query += btn;
+                this.parse();
+            }
         },
         //TODO: Replace Eval with a web worker to prevent XSS, ajax requests also need to be handled
         parse: function() {
@@ -97,8 +107,6 @@ const calc = new Vue({
         },
         singlespace: function(s) {
             return s.replace(/\s+/g, ' ');
-        },
-        binaryOp: function() {
         }
     },
 });
@@ -108,7 +116,7 @@ var LessTE_Precedence = function(a, b) {
         "(": -1,
         "+": 1, "-": 1,
         "*": 2, "x": 2, "/": 2, "÷": 2,
-        "^": 3
+        "^": 3, "n√": 3
     };
     if (!b) {
         //operator stack is empty
@@ -148,6 +156,9 @@ var splitVariables = function(term, dict) {
         } else {
             break;
         }
+    }
+    if (parsable.length) {
+        result.push(parsable);
     }
     return (result.length) ? result : [term];
 }
