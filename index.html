@@ -25,8 +25,8 @@
                 <label v-if="row == 1 && column <= 4">
                     {{ btns[row - 1][column - 1] }}
                     <span v-if="column == 4">
-                        <input type="radio" :name="btns[row - 1][column - 1]" checked disabled>
-                        <input type="radio" :name="btns[row - 1][column - 1]" disabled v-model="degMode">
+                        <input type="radio" :name="btns[row - 1][column - 1]" value="degree" v-model="degMode" @change="parse">
+                        <input type="radio" :name="btns[row - 1][column - 1]" value="radian" v-model="degMode" @change="parse">
                     </span>
                     <input type="radio" name="mode" v-else :checked="column == 1" disabled>
                 </label>
@@ -42,7 +42,7 @@ const calc = new Vue({
     data: {
         answer: null,
         query: '',
-        degMode: false,
+        degMode: "degree",
         memory: [  ],
         dict: {
             "(": { type: "parentheses", val: "(" },
@@ -92,10 +92,9 @@ const calc = new Vue({
                 this.parse();
             }
         },
-        //TODO: Replace Eval with a web worker to prevent XSS, ajax requests also need to be handled
         parse: function() {
             this.query = this.singlespace(this.query);
-            this.answer = postFixCalc(this.query, this.dict, this.degMode);
+            this.answer = postFixCalc(this.query, this.dict, this.degMode === "degree");
         },
         evaluate: function() {
 

@@ -6,6 +6,7 @@ Scientific Calculator inspired by [Desmos](https://www.desmos.com/scientific) an
   * [x] Infix to Postfix conversion
   * [x] Calculate value on Key Up
   * [x] Store previous Answers and equations
+  * [ ] Complete all main buttons for scientific calculator
   * [ ] Allow for variable declaration
   * [ ] Separate into API
 * [ ] Vue
